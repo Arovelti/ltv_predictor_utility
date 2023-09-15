@@ -1,16 +1,14 @@
 package aggregator
 
-import (
-	"github.com/Arovelti/ltv_predictor_utility/entity"
-)
+import "github.com/Arovelti/ltv_predictor_utility/domain/models"
 
-func AggregateData(userData *entity.UserData, aggregateLevel string) []entity.AggregatedData {
-	aggregatedDataMap := make(map[string]entity.AggregatedData)
+func AggregateData(userData *models.UserData, level string) []models.AggregatedData {
+	aggregatedDataMap := make(map[string]models.AggregatedData)
 
 	for _, ud := range userData.Data {
 		var key string
 
-		switch aggregateLevel {
+		switch level {
 		case "country":
 			key = ud.Country
 		case "campaign":
@@ -19,7 +17,7 @@ func AggregateData(userData *entity.UserData, aggregateLevel string) []entity.Ag
 
 		aggregatedData, found := aggregatedDataMap[key]
 		if !found {
-			aggregatedData = entity.AggregatedData{
+			aggregatedData = models.AggregatedData{
 				Key:        key,
 				TotalLTV:   0,
 				UserCount:  0,
@@ -40,7 +38,7 @@ func AggregateData(userData *entity.UserData, aggregateLevel string) []entity.Ag
 		aggregatedDataMap[key] = aggregatedData
 	}
 
-	var aggregatedDataList []entity.AggregatedData
+	var aggregatedDataList []models.AggregatedData
 	for _, aggregatedData := range aggregatedDataMap {
 		aggregatedDataList = append(aggregatedDataList, aggregatedData)
 	}

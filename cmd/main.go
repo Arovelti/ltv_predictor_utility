@@ -2,17 +2,20 @@ package main
 
 import (
 	"context"
-	"flag"
-	"fmt"
 	"log"
 	"os"
 	"os/signal"
 	"syscall"
 
-	"github.com/Arovelti/ltv_predictor_utility/aggregator"
-	"github.com/Arovelti/ltv_predictor_utility/loader"
-	"github.com/Arovelti/ltv_predictor_utility/predictor"
+	"github.com/Arovelti/ltv_predictor_utility/adapter/loader"
+	"github.com/Arovelti/ltv_predictor_utility/config/cli"
+	"github.com/Arovelti/ltv_predictor_utility/domain/models"
+	"github.com/Arovelti/ltv_predictor_utility/domain/predict"
 )
+
+type Predictor interface {
+	PredictLTV(aggregatedData models.AggregatedData, model string) float64
+}
 
 func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM, syscall.SIGQUIT)
@@ -21,27 +24,12 @@ func main() {
 		cancel()
 	}()
 
-	modelFlag := flag.String("model", "linear", "Model selection (linear or quadratic)")
-	sourceFlag := flag.String("source", "test_data.csv", "Source file with data (JSON or CSV)")
-	aggregateFlag := flag.String("aggregate", "country", "Data aggregation level (country or campaign)")
-	flag.Parse()
-
-	if *sourceFlag == "" {
-		log.Fatal("the source flag is missed")
-		return
-	}
-
-	var l loader.User
-	ud, err := l.LoadData(*sourceFlag)
+	flags, err := cli.GetFlags()
 	if err != nil {
-		log.Fatalf("unable to load data: %v", err)
+		log.Fatalf("unable to parse flgs^ %v", err)
 	}
 
-	aggregateDataList := aggregator.AggregateData(ud, *aggregateFlag)
+	l := loader.NewLoader(flags.Source)
 
-	for _, aggregatedData := range aggregateDataList {
-		ltv := predictor.PredictLTV(aggregatedData, *modelFlag)
-		fmt.Printf("%s: %.2f\n", aggregatedData.Key, ltv)
-	}
-
+	predict.PredictLTV(l, flags.Source, flags.Model, flags.AggregatorType)
 }

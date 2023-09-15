@@ -10,7 +10,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/Arovelti/ltv_predictor_utility/entity"
+	"github.com/Arovelti/ltv_predictor_utility/domain/models"
 	"github.com/Arovelti/ltv_predictor_utility/pkg/helper"
 )
 
@@ -22,53 +22,55 @@ const (
 //go:embed test_data/*
 var content embed.FS
 
-type User struct{}
+type Loader func(source string) (*models.UserData, error)
 
-type DataLoader interface {
-	LoadData(source string) (entity.UserData, error)
+func (l Loader) LoadData(source string) (*models.UserData, error) {
+	return l(source)
 }
 
-func (u *User) LoadData(source string) (*entity.UserData, error) {
-	f := fmt.Sprintf("test_data/%s", source)
+func NewLoader(source string) Loader {
+	return func(source string) (*models.UserData, error) {
+		f := fmt.Sprintf("test_data/%s", source)
 
-	reader, err := content.ReadFile(f)
-	if err != nil {
-		fmt.Println(err)
-	}
-
-	userData := &entity.UserData{}
-
-	switch source {
-	case "test_data.json":
-		jsonData, err := loadJson(reader)
+		reader, err := content.ReadFile(f)
 		if err != nil {
-			return nil, err
+			fmt.Println(err)
 		}
 
-		userData.Data = jsonData
-		userData.DataType = jsonType
+		userData := &models.UserData{}
 
-	case "test_data.csv":
-		s := helper.SliceByteToString(reader)
-		reader := csv.NewReader(strings.NewReader(s))
+		switch source {
+		case "test_data.json":
+			jsonData, err := loadJson(reader)
+			if err != nil {
+				return nil, err
+			}
 
-		csvData, err := loadCSV(reader)
-		if err != nil {
-			return nil, err
+			userData.Data = jsonData
+			userData.DataType = jsonType
+
+		case "test_data.csv":
+			s := helper.SliceByteToString(reader)
+			reader := csv.NewReader(strings.NewReader(s))
+
+			csvData, err := loadCSV(reader)
+			if err != nil {
+				return nil, err
+			}
+
+			userData.Data = csvData
+			userData.DataType = csvType
+
+		default:
+			return nil, errors.New("unsupported source data format")
 		}
 
-		userData.Data = csvData
-		userData.DataType = csvType
-
-	default:
-		return nil, errors.New("unsupported source data format")
+		return userData, nil
 	}
-
-	return userData, nil
 }
 
-func loadJson(reader []byte) ([]entity.LoadUserData, error) {
-	var data []entity.LoadUserData
+func loadJson(reader []byte) ([]models.LoadUserData, error) {
+	var data []models.LoadUserData
 
 	if err := json.Unmarshal(reader, &data); err != nil {
 		return nil, fmt.Errorf("unable to unmarshal sourse data: %v", err)
@@ -77,13 +79,13 @@ func loadJson(reader []byte) ([]entity.LoadUserData, error) {
 	return data, nil
 }
 
-func loadCSV(reader *csv.Reader) ([]entity.LoadUserData, error) {
+func loadCSV(reader *csv.Reader) ([]models.LoadUserData, error) {
 	records, err := reader.ReadAll()
 	if err != nil {
 		log.Fatalf("unable to read records from csv file: %v", err)
 	}
 
-	var data []entity.LoadUserData
+	var data []models.LoadUserData
 
 	for _, record := range records[1:] {
 
@@ -98,7 +100,7 @@ func loadCSV(reader *csv.Reader) ([]entity.LoadUserData, error) {
 		ltv6, _ := strconv.ParseFloat(record[8], 64)
 		ltv7, _ := strconv.ParseFloat(record[9], 64)
 
-		user := entity.LoadUserData{
+		user := models.LoadUserData{
 			UserID:     userID,
 			CampaignID: campaignID,
 			Country:    country,
